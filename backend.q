@@ -44,12 +44,12 @@ nextTurn:{update turn:-1 rotate turn from `.backend.connections};
 
 //General Validation
 checkTurn:{if[first 0=exec turn from .backend.connections where handle=.z.w;neg[.z.w](0N!;"It is not your turn")]};
-checkCardInHand:{[cards] if[not min .backend.cardDeck?cards in .backend.hand[exec playerNo from .backend.connections where handle=.z.w];neg[.z.w]@(0N!;"Card is not in your hand")]};
+checkCardInHand:{[cards] if[not min .backend.cardDeck?cards in .backend.hand[exec playerNo from .backend.connections where handle=.z.w];neg[.z.w](0N!;"Card is not in your hand")]};
 
 //First hand validation - run if .backend.hand has 52 cards
-check3D:{[cards] if[not max 4=.backend.cardDeck?cards;neg[.z.w]@(0N!;"First hand needs to have 3D")]};
+check3D:{[cards] if[not max 4=.backend.cardDeck?cards;neg[.z.w](0N!;"First hand needs to have 3D")]};
 
 //Play type validations
-singlePlay:{[cards] if[not 1=count .backend.cardDeck?cards;neg[.z.w]@(0N!;"Wrong play")]};
-doublesPlay:{[cards] if[not ((2=count .backend.cardDeck?cards)&(min a=first a:cards[::;0]));neg[.z.w]@(0N!;"Wrong Play")]};
-fiveCardPlay:{[cards] if[not 5=count .backend.cardDeck?cards;neg[.z.w]@(0N!;"Wrong Play")]};
+singlePlay:{[cards] if[not 1=count .backend.cardDeck?cards;neg[.z.w](0N!;"Wrong play")]};
+doublesPlay:{[cards] if[not ((2=count .backend.cardDeck?cards)&(min a=first a:cards[::;0]));neg[.z.w](0N!;"Wrong Play")]};
+fiveCardPlay:{[cards] if[not 5=count .backend.cardDeck?cards;neg[.z.w](0N!;"Wrong Play")]};
