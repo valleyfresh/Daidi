@@ -35,7 +35,7 @@ shuffle:{system"S ",string`long$.z.t;flip(0N;4)#0N?52};
 
 deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[]]};
 
-startTurn:{update turn:max each 3=.backend.hand from `.backend.connections};
+startTurn:{update turn:max each 3=.backend.hand from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
 
 nextTurn:{update turn:-1 rotate turn from `.backend.connections};
 
@@ -45,6 +45,7 @@ nextTurn:{update turn:-1 rotate turn from `.backend.connections};
 //General Validation
 checkTurn:{if[first 0=exec turn from .backend.connections where handle=.z.w;neg[.z.w](0N!;"It is not your turn")]};
 checkCardInHand:{[cards] if[not min .backend.cardDeck?cards in .backend.hand[exec playerNo from .backend.connections where handle=.z.w];neg[.z.w](0N!;"Card is not in your hand")]};
+pass:{[cards] $[(card=`pass)&(not 52=count raze .backend.hand);nextTurn[]]};
 
 //First hand validation - run if .backend.hand has 52 cards
 check3D:{[cards] if[not max 4=.backend.cardDeck?cards;neg[.z.w](0N!;"First hand needs to have 3D")]};
