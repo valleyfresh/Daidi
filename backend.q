@@ -1,10 +1,16 @@
 system"p 1234";
 
-.log.connections:flip `dateTime`user`host`ipAddress`connection`handle`duration!"ZSS*SIV"$\:();
+\d .backend
 
-.z.po:{[w] `.log.connections insert .z.Z,.z.u,(.Q.host .z.a;"." sv string "h"$0x0 vs .z.a),`opened,w,0Nv;0N!"Connection Established"};
-.z.pc:{[w] update connection:`closed,duration:"v"$80000*.z.Z-dateTime from `.log.connections where handle = w};
+connections:flip `dateTime`user`host`ipAddress`handle`playerNo!"ZSS*II"$\:();
+
+.z.po:{[w] $[4>=a:1+exec count i from .backend.connections;
+	(`.backend.connections insert .z.Z,.z.u,(.Q.host .z.a;"." sv string "h"$0x0 vs .z.a),w,a;
+	0N!"Connection Established by ",string .z.u);
+	neg[w]@"Lobby is full"]};
+
+.z.pc:{[w] delete from `.backend.connections where handle = w;0N!(string .z.u)," has left the Lobby"};
 
 shuffle:{system"S ",string`long$.z.t;flip(0N;4)#0N?52};
 
-deal:{h::exec handle from .log.connections;{neg[x](`showHand;y)}'[h;shuffle[]]};
+deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;shuffle[]]};
