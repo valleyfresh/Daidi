@@ -20,13 +20,13 @@ connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:
         ]
     
     if[4=a;
-        neg[key .z.W]@\:(0N!;"All players have connected, the game is commencing...")
+        neg[key .z.W]@\:(0N!;"All players have connected, the game is commencing...");
+	deal[];
+	startTurn:[];
         ]
-    
     };
 	
 .z.pc:{[w] delete from `.backend.connections where handle = w;0N!(string .z.u)," has left the Lobby"};
-
 
 //Card Dealing and Turn logic
 cardDeck:til[52]!((string 2+til[9]),"JQKA")cross"DCHS";
@@ -35,9 +35,14 @@ shuffle:{system"S ",string`long$.z.t;flip(0N;4)#0N?52};
 
 deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[]]};
 
-startTurn:{update turn:max each 3=.backend.hand from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
+startTurn:{update turn:max each 4=.backend.hand from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
 
 nextTurn:{update turn:-1 rotate turn from `.backend.connections};
+
+//Card Ranking
+suitRank:til[4]!"DCHS";
+valueRank:til[14]!(string 1+til[10]),"JQKA";
+fiveCardRank:til[6]!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
 //Validations
 //runJob:{if[52=count raze .backend.hand;firstHand[x]};
