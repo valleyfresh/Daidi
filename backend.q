@@ -58,4 +58,18 @@ check3D:{[cards] if[not max 4=.backend.cardDeck?cards;neg[.z.w](0N!;"First hand 
 //Play type validations
 singlePlay:{[cards] if[not 1=count .backend.cardDeck?cards;neg[.z.w](0N!;"Wrong play")]};
 doublesPlay:{[cards] if[not ((2=count .backend.cardDeck?cards)&(min a=first a:cards[::;0]));neg[.z.w](0N!;"Wrong Play")]};
-fiveCardPlay:{[cards] if[not 5=count .backend.cardDeck?cards;neg[.z.w](0N!;"Wrong Play")]};
+fiveCardPlay:{[cards] $[5=count .backend.cardDeck?cards;
+	straight[cards];
+	flush[cards];
+	fullHouse[cards];
+	quads[cards];
+	straightFlush[cards];
+	royalFlush[cards];
+	neg[.z.w](0N!;"Wrong Play")]};
+
+//Five card logic - ("3S";"4H";"5S";"6C";"7S")
+straightCheck:{[cards] min 1=1_deltas valueRank?string cards[::;0]};
+flushCheck:{[cards] min(first a)=a:last each cards};
+royalCheck:{[cards] if[1b=straightCheck[cards]&flushCheck[cards]&sum ]};
+fullHouseCheck:{[cards] max min each(3 2;2 3)=\:sum each(distinct a)=\:a:cards[::;0]};
+quadsCheck:{[cards] max min each(4 1;1 4)=\:sum each(distinct a)=\:a:cards[::;0]};
