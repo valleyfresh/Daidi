@@ -38,7 +38,7 @@ nextTurn:{update turn:-1 rotate turn from `.backend.connections};
 
 //Card Ranking
 suitRank:til[4]!"DCHS";
-valueRank:til[13]!(string 2+til[9]),enlist each"JQKA";
+valueRank:til[13]!(string 3+til[8]),enlist each"JQKA2";
 fiveCardRank:til[6]!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
 //Validations
