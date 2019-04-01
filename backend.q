@@ -1,5 +1,7 @@
 \p 1234
 testHands:til[3]!(("10S";"JS";"QS";"KS";"AS");("10H";"10S";"10D";"3S";"3D");("10H";"10S";"10D";"10C";"3D"));
+roundType:`$();
+
 \d .backend
 
 //Connection logic
@@ -23,7 +25,7 @@ connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:
     if[4=a;
         neg[key .z.W]@\:(0N!;"All players have connected, the game is commencing...");
 	deal[];
-	startTurn:[];
+	startTurn[];
         ]
     };
 	
@@ -42,33 +44,47 @@ valueRank:til[13]!(string 3+til[8]),enlist each"JQKA2";
 fiveCardRank:til[6]!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
 //Validations
-//runJob:{if[52=count raze .backend.hand;firstHand[x]};
 
 //General Validation
-checkTurn:{if[first 0=exec turn from .backend.connections where handle=.z.w;neg[.z.w](0N!;"It is not your turn")]};
-checkCardInHand:{[cards] if[not min .backend.cardDeck?cards in .backend.hand[exec playerNo from .backend.connections where handle=.z.w];neg[.z.w](0N!;"Card is not in your hand")]};
-pass:{[cards] $[(card=`pass)&(not 52=count raze .backend.hand);nextTurn[]]};
+checkTurn:{$[first 0=exec turn from .backend.connections where handle=.z.w;
+	neg[.z.w](0N!;"It is not your turn");
+	1b]};
+checkInHand:{[cards] $[min .backend.cardDeck?cards in .backend.hand[exec playerNo from .backend.connections where handle=.z.w];
+	1b;
+	neg[.z.w](0N!;"Card is not in your hand")]};
+pass:{[cards] $[(cards=`pass)&(not 52=count raze .backend.hand);
+	nextTurn[];
+	neg[.z.w](0N!;"You cannot pass the first turn!")]};
 
 //First hand validation - run if .backend.hand has 52 cards
 check3D:{[cards] if[not max 4=.backend.cardDeck?cards;neg[.z.w](0N!;"First hand needs to have 3D")]};
 
-//Play type validations
-singlePlay:{[cards] if[not 1=count cards;neg[.z.w](0N!;"Wrong number of cards")]};
-doublesPlay:{[cards] $[2=count cards;
-	$[min(a 0)=a:.backend.valueRank?-1_'cards);
+//Round type validations
+singlePlay:{1b};
+
+doublesPlay:{[cards] $[min(a 0)=a:.backend.valueRank?-1_'cards;
 	1b;
-	neg[.z.w](0N!;"Invalid doubles pair")];
-	neg[.z.w](0N!;"Wrong number of cards")]};
-fiveCardPlay:{[cards] $[5=count cards;
-	$[max a:(straightCheck[cards];
+	neg[.z.w](0N!;"Invalid doubles pair")]};
+
+fiveCardPlay:{[cards] $[max a:(straightCheck[cards];
 		flushCheck[cards];
 		fullHouseCheck[cards];
 		quadsCheck[cards];
 		straightFlushCheck[cards];
 		royalCheck[cards]);
 	last (value .backend.fiveCardRank) where a;
-	neg[.z.w](0N!;"Invalid 5 card combo")];
-	neg[.z.w](0N!;"Wrong number of cards")]};
+	neg[.z.w](0N!;"Invalid 5 card combo")]};
+
+roundDict:`single`double`fiveCard!1 2 5;
+roundCheck:`single`double`fiveCard!(.backend.singlePlay;.backend.doublesPlay;.backend.fiveCardPlay);
+
+roundPlay:{[cards] $[roundType=`;
+	$[(a:count cards) in value .backend.roundDict;
+		(.backend.roundCheck .backend.roundDict?a)[cards];
+		neg[.z.w](0N!"Wrong number of cards")];
+	$[roundType in key .backend.roundCheck;
+		(.backend.roundCheck roundType)[cards];
+		neg[.z.w](0N!"Wrong play type!")]]};
 
 //Five card validations
 straightCheck:{[cards] min 1=1_deltas .backend.valueRank?-1_'cards};
@@ -81,3 +97,7 @@ fullHouseCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 	(max min each(4 1;1 4)=\:sum each(distinct a)=\:a);
 	0b]};
+
+//Play
+
+//playHand:{if[checkTurn[];if[52=count raze .backend.hand;check3D[cards]];
