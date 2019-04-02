@@ -1,6 +1,5 @@
 \p 1234
 testHands:til[3]!(("10S";"JS";"QS";"KS";"AS");("10H";"10S";"10D";"3S";"3D");("10H";"10S";"10D";"10C";"3D"));
-roundType:`$();
 
 \d .backend
 
@@ -31,21 +30,34 @@ connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:
 	
 .z.pc:{[w] delete from `.backend.connections where handle = w;0N!(string .z.u)," has left the Lobby"};
 
-//Card Dealing and Turn logic
-cardDeck:til[52]!((string 2+til[9]),"JQKA")cross"DCHS";
+//Card dealing and turn logic
+cardDeck:til[52]!((string 3+til[8]),enlist each"JQKA2")cross"DCHS";
 shuffle:{system"S ",string`long$.z.t;flip(0N;4)#0N?52};
-deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[]]};
+deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[];.backend.turnTableInit[]]};
 startTurn:{update turn:max each 4=.backend.hand from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
 nextTurn:{update turn:-1 rotate turn from `.backend.connections};
 
-//Card Ranking
+//Card ranking
 suitRank:til[4]!"DCHS";
 valueRank:til[13]!(string 3+til[8]),enlist each"JQKA2";
 fiveCardRank:til[6]!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
-//Validations
+//Rank calculation
+singlesRank:{[cards] .backend.cardDeck?cards};
+doublesRank:{[cards] .backend.cardDeck?cards where .backend.suitRank?last each cards};
+fiveCardRank:{[cards] };
 
-//General Validation
+//Turn table - reinitialised every game and updated when a valid hand is played
+turnTableInit:{turnTable::flip `player`handle`round`play`rank!"SIS*I"$\:()};
+
+//after passing validations - turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;round;cards;rankVal)};
+//
+
+/////////////////////////
+////   Validations  /////
+////////////////////////
+
+//General validation
 checkTurn:{$[first 0=exec turn from .backend.connections where handle=.z.w;
 	neg[.z.w](0N!;"It is not your turn");
 	1b]};
@@ -78,13 +90,13 @@ fiveCardPlay:{[cards] $[max a:(straightCheck[cards];
 roundDict:`single`double`fiveCard!1 2 5;
 roundCheck:`single`double`fiveCard!(.backend.singlePlay;.backend.doublesPlay;.backend.fiveCardPlay);
 
-roundPlay:{[cards] $[roundType=`;
+roundPlay:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rank from .backend.turnTable;
 	$[(a:count cards) in value .backend.roundDict;
 		(.backend.roundCheck .backend.roundDict?a)[cards];
-		neg[.z.w](0N!"Wrong number of cards")];
-	$[roundType in key .backend.roundCheck;
-		(.backend.roundCheck roundType)[cards];
-		neg[.z.w](0N!"Wrong play type!")]]};
+		neg[.z.w](0N!"Invalid number of cards")];
+	$[(count cards)=.backend.roundDict a:first -1#exec round from .backend.turnTable
+		(.backend.roundCheck a)[cards];
+		neg[.z.w](0N!"Invalid number of cards")]]};
 
 //Five card validations
 straightCheck:{[cards] min 1=1_deltas .backend.valueRank?-1_'cards};
