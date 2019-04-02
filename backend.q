@@ -34,7 +34,6 @@ connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:
 .z.pc:{[w] delete from `.backend.connections where handle = w;0N!(string .z.u)," has left the Lobby"};
 
 //Card dealing and turn logic
-
 cardDeck:til[53]!(enlist"pass"),(((string 3+til[8]),enlist each"JQKA2")cross"DCHS");
 shuffle:{system"S ",string`long$.z.t;flip(0N;4)#1+0N?52};
 deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[]];.backend.turnTableInit[]};
