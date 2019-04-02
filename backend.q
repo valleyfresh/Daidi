@@ -3,7 +3,10 @@ testHands:til[3]!(("10S";"JS";"QS";"KS";"AS");("10H";"10S";"10D";"3S";"3D");("10
 
 \d .backend
 
-//Connection logic
+//////////////////////////////
+////   Connection logic   ////
+/////////////////////////////
+
 connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:();
 
 .z.po:{[w] $[4>=a:1+exec count i from .backend.connections;
@@ -31,9 +34,10 @@ connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:
 .z.pc:{[w] delete from `.backend.connections where handle = w;0N!(string .z.u)," has left the Lobby"};
 
 //Card dealing and turn logic
-cardDeck:til[52]!((string 3+til[8]),enlist each"JQKA2")cross"DCHS";
-shuffle:{system"S ",string`long$.z.t;flip(0N;4)#0N?52};
-deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[];.backend.turnTableInit[]]};
+
+cardDeck:til[53]!(enlist"pass"),(((string 3+til[8]),enlist each"JQKA2")cross"DCHS");
+shuffle:{system"S ",string`long$.z.t;flip(0N;4)#1+0N?52};
+deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[]];.backend.turnTableInit[]};
 startTurn:{update turn:max each 4=.backend.hand from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
 nextTurn:{update turn:-1 rotate turn from `.backend.connections};
 
@@ -69,7 +73,7 @@ pass:{[cards] $[(cards=`pass)&(not 52=count raze .backend.hand);
 	neg[.z.w](0N!;"You cannot pass the first turn!")]};
 
 //First hand validation - run if .backend.hand has 52 cards
-check3D:{[cards] if[not max 4=.backend.cardDeck?cards;neg[.z.w](0N!;"First hand needs to have 3D")]};
+check3D:{[cards] if[not max 1=.backend.cardDeck?cards;neg[.z.w](0N!;"First hand needs to have 3D")]};
 
 //Round type validations
 singlePlay:{1b};
@@ -84,15 +88,15 @@ fiveCardPlay:{[cards] $[max a:(straightCheck[cards];
 		quadsCheck[cards];
 		straightFlushCheck[cards];
 		royalCheck[cards]);
-	last (value .backend.fiveCardRank) where a;
+	1b;	//last (value .backend.fiveCardRank) where a --> output fivecardplay symbol; to be used when checking rank 
 	neg[.z.w](0N!;"Invalid 5 card combo")]};
 
 roundDict:`single`double`fiveCard!1 2 5;
 roundCheck:`single`double`fiveCard!(.backend.singlePlay;.backend.doublesPlay;.backend.fiveCardPlay);
 
-roundPlay:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rank from .backend.turnTable;
+roundVal:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rank from .backend.turnTable;
 	$[(a:count cards) in value .backend.roundDict;
-		(.backend.roundCheck .backend.roundDict?a)[cards];
+		(.backend.roundCheck .backend.roundDict?a)[cards]; 
 		neg[.z.w](0N!"Invalid number of cards")];
 	$[(count cards)=.backend.roundDict a:first -1#exec round from .backend.turnTable
 		(.backend.roundCheck a)[cards];
@@ -110,6 +114,19 @@ quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 	(max min each(4 1;1 4)=\:sum each(distinct a)=\:a);
 	0b]};
 
-//Play
+/////////////////////////////////////
+////   Post-validation actions   ////
+////////////////////////////////////
 
-//playHand:{if[checkTurn[];if[52=count raze .backend.hand;check3D[cards]];
+turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;round;cards;rankVal)};
+
+//////////////////////////////////
+////   Client Play Function   ////
+/////////////////////////////////
+\
+//playHand:{[cards] $[.backend.checkTurn[];
+	if[0=count .backend.turnTable;
+		if[.backend.check3D[cards];
+			if[.backend.roundVal[cards];
+				];
+/
