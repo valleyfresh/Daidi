@@ -33,19 +33,18 @@ connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:
 	
 .z.pc:{[w] delete from `.backend.connections where handle = w;0N!(string .z.u)," has left the Lobby"};
 
-//Card dealing and turn logic
+//***Start game logic***//
 cardDeck:til[53]!(enlist"pass"),(((string 3+til[8]),enlist each"JQKA2")cross"DCHS");
 shuffle:{system"S ",string`long$.z.t;flip(0N;4)#1+0N?52};
 deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[]];.backend.turnTableInit[]};
-startTurn:{update turn:max each 4=.backend.hand from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
-nextTurn:{update turn:-1 rotate turn from `.backend.connections};
+startTurn:{update turn:max each 1=.backend.hand from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
 
-//Card ranking
+//***Card ranking***//
 suitRank:til[4]!"DCHS";
 valueRank:til[13]!(string 3+til[8]),enlist each"JQKA2";
 fiveCardRank:til[6]!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
-//Rank calculation
+//***Rank calculation***//
 singlesRank:{[cards] .backend.cardDeck?cards};
 doublesRank:{[cards] .backend.cardDeck?cards where .backend.suitRank?last each cards};
 fiveCardRank:{[cards] };
@@ -53,28 +52,27 @@ fiveCardRank:{[cards] };
 //Turn table - reinitialised every game and updated when a valid hand is played
 turnTableInit:{turnTable::flip `player`handle`round`play`rank!"SIS*I"$\:()};
 
-//after passing validations - turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;round;cards;rankVal)};
-//
-
 /////////////////////////
 ////   Validations  /////
 ////////////////////////
 
-//General validation
+//***General validation***//
 checkTurn:{$[first 0=exec turn from .backend.connections where handle=.z.w;
 	neg[.z.w](0N!;"It is not your turn");
 	1b]};
+
 checkInHand:{[cards] $[min .backend.cardDeck?cards in .backend.hand[exec playerNo from .backend.connections where handle=.z.w];
 	1b;
 	neg[.z.w](0N!;"Card is not in your hand")]};
+
 pass:{[cards] $[(cards=`pass)&(not 52=count raze .backend.hand);
 	nextTurn[];
 	neg[.z.w](0N!;"You cannot pass the first turn!")]};
 
-//First hand validation - run if .backend.hand has 52 cards
+//***First hand validation***//
 check3D:{[cards] if[not max 1=.backend.cardDeck?cards;neg[.z.w](0N!;"First hand needs to have 3D")]};
 
-//Round type validations
+//***Round type validations***//
 singlePlay:{1b};
 
 doublesPlay:{[cards] $[min(a 0)=a:.backend.valueRank?-1_'cards;
@@ -101,14 +99,19 @@ roundVal:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rank from .backen
 		(.backend.roundCheck a)[cards];
 		neg[.z.w](0N!"Invalid number of cards")]]};
 
-//Five card validations
+//***Five card validations***//
 straightCheck:{[cards] min 1=1_deltas .backend.valueRank?-1_'cards};
+
 flushCheck:{[cards] min(first a)=a:last each cards};
+
 straightFlushCheck:{[cards] .backend.straightCheck[cards]&.backend.flushCheck[cards]};
+
 royalCheck:{[cards] .backend.straightCheck[cards]&.backend.flushCheck[cards]&50=sum .backend.valueRank?-1_'cards};
+
 fullHouseCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 	(max min each(3 2;2 3)=\:sum each(distinct a)=\:a);
 	0b]};
+
 quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 	(max min each(4 1;1 4)=\:sum each(distinct a)=\:a);
 	0b]};
@@ -118,6 +121,11 @@ quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 ////////////////////////////////////
 
 turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;round;cards;rankVal)};
+
+//***NOTE: Only run next turn after running remove card function***//
+removeCard:{[cards] a:(a:.backend.hand[first exec i from .backend.connections where turn=1b])_/desc .backend.cardDeck?cards};
+
+nextTurn:{update turn:-1 rotate turn from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
 
 //////////////////////////////////
 ////   Client Play Function   ////
