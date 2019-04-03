@@ -33,7 +33,7 @@ connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:
 	
 .z.pc:{[w] delete from `.backend.connections where handle = w;0N!(string .z.u)," has left the Lobby"};
 
-//***Start game logic***//
+//***Start game functions***//
 cardDeck:til[53]!(enlist"pass"),(((string 3+til[8]),enlist each"JQKA2")cross"DCHS");
 shuffle:{system"S ",string`long$.z.t;flip(0N;4)#1+0N?52};
 deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[]];.backend.turnTableInit[]};
@@ -46,7 +46,7 @@ fiveCardRank:til[6]!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
 //***Rank calculation***//
 singlesRank:{[cards] .backend.cardDeck?cards};
-doublesRank:{[cards] .backend.cardDeck?cards where .backend.suitRank?last each cards};
+doublesRank:{[cards] sum(.backend.cardDeck?cards),.backend.suitRank?last each cards};
 fiveCardRank:{[cards] };
 
 //Turn table - reinitialised every game and updated when a valid hand is played
@@ -91,7 +91,7 @@ fiveCardPlay:{[cards] $[max a:(straightCheck[cards];
 roundDict:`single`double`fiveCard!1 2 5;
 roundCheck:`single`double`fiveCard!(.backend.singlePlay;.backend.doublesPlay;.backend.fiveCardPlay);
 
-roundVal:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rank from .backend.turnTable;
+roundPlay:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rank from .backend.turnTable;
 	$[(a:count cards) in value .backend.roundDict;
 		(.backend.roundCheck .backend.roundDict?a)[cards]; 
 		neg[.z.w](0N!"Invalid number of cards")];
@@ -115,6 +115,16 @@ fullHouseCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 	(max min each(4 1;1 4)=\:sum each(distinct a)=\:a);
 	0b]};
+
+//////////////////////////////
+////   Value validation   ////
+/////////////////////////////
+
+singleCheck:{[cards] };
+
+doublesCheck:{[cards] };
+
+fiveCardCheck:{[cards] };
 
 /////////////////////////////////////
 ////   Post-validation actions   ////
