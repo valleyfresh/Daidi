@@ -33,30 +33,34 @@ connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:
 	
 .z.pc:{[w] delete from `.backend.connections where handle = w;0N!(string .z.u)," has left the Lobby"};
 
-//***Start game functions***//
+//***   Start game functions   ***//
 cardDeck:til[53]!(enlist"pass"),(((string 3+til[8]),enlist each"JQKA2")cross"DCHS");
 shuffle:{system"S ",string`long$.z.t;flip(0N;4)#1+0N?52};
 deal:{h::exec handle from .backend.connections;{neg[x](`showHand;y)}'[h;hand::shuffle[]];.backend.turnTableInit[]};
 startTurn:{update turn:max each 1=.backend.hand from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
 
-//***Card ranking***//
+//Turn table - reinitialised every game and updated when a valid hand is played
+turnTableInit:{turnTable::flip `player`handle`round`play`rankVal!"SIS*J"$\:()};
+
+////////////////////
+////  Ranking   ////
+///////////////////
+
+//***   Card ranking   ***//
 suitRank:til[4]!"DCHS";
 valueRank:til[13]!(string 3+til[8]),enlist each"JQKA2";
 fiveCardRank:til[6]!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
-//***Rank calculation***//
-singlesRank:{[cards] .backend.cardDeck?cards};
-doublesRank:{[cards] sum(.backend.cardDeck?cards),.backend.suitRank?last each cards};
-fiveCardRank:{[cards] };
-
-//Turn table - reinitialised every game and updated when a valid hand is played
-turnTableInit:{turnTable::flip `player`handle`round`play`rank!"SIS*I"$\:()};
+//***   Rank calculation   ***//
+singleCalc:{[cards] .backend.cardDeck?cards};
+doublesCalc:{[cards] sum(.backend.cardDeck?cards),.backend.suitRank?last each cards};
+fiveCardCalc:{[cards] sum(max .backend.cardDeck?cards),last (key .backend.fiveCardRank) where .backend.fiveCardVal};
 
 /////////////////////////
 ////   Validations  /////
 ////////////////////////
 
-//***General validation***//
+//***   General validation   ***//
 checkTurn:{$[first 0=exec turn from .backend.connections where handle=.z.w;
 	neg[.z.w](0N!;"It is not your turn");
 	1b]};
@@ -69,17 +73,17 @@ pass:{[cards] $[(cards=`pass)&(not 52=count raze .backend.hand);
 	nextTurn[];
 	neg[.z.w](0N!;"You cannot pass the first turn!")]};
 
-//***First hand validation***//
+//***   First hand validation   ***//
 check3D:{[cards] if[not max 1=.backend.cardDeck?cards;neg[.z.w](0N!;"First hand needs to have 3D")]};
 
-//***Round type validations***//
+//***   Round type validations   ***//
 singlePlay:{1b};
 
 doublesPlay:{[cards] $[min(a 0)=a:.backend.valueRank?-1_'cards;
 	1b;
 	neg[.z.w](0N!;"Invalid doubles pair")]};
 
-fiveCardPlay:{[cards] $[max a:(straightCheck[cards];
+fiveCardPlay:{[cards] $[max fiveCardVal::(straightCheck[cards];
 		flushCheck[cards];
 		fullHouseCheck[cards];
 		quadsCheck[cards];
@@ -99,7 +103,7 @@ roundPlay:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rank from .backe
 		(.backend.roundCheck a)[cards];
 		neg[.z.w](0N!"Invalid number of cards")]]};
 
-//***Five card validations***//
+//***   Five card validations   ***//
 straightCheck:{[cards] min 1=1_deltas .backend.valueRank?-1_'cards};
 
 flushCheck:{[cards] min(first a)=a:last each cards};
@@ -116,21 +120,19 @@ quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 	(max min each(4 1;1 4)=\:sum each(distinct a)=\:a);
 	0b]};
 
-//////////////////////////////
-////   Value validation   ////
-/////////////////////////////
+//***  Value validation   ***//
 
-singleCheck:{[cards] };
+singleRankCheck:{[cards] .backend.singleCalc[cards]>last exec rankVal from .backend.turnTable where rankVal>0};
 
-doublesCheck:{[cards] };
+doublesRankCheck:{[cards] .backend.doublesCalc[cards]>last exec rankVal from .backend.turnTable where rankVal>0};
 
-fiveCardCheck:{[cards] };
+fiveCardRankCheck:{[cards] .backend.fiveCardCalc[cards]>last exec rankVal from .backend.turnTable where rankVal>0};
 
 /////////////////////////////////////
 ////   Post-validation actions   ////
 ////////////////////////////////////
 
-turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;round;cards;rankVal)};
+turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;round;enlist cards;rankVal)};
 
 //***NOTE: Only run next turn after running remove card function***//
 removeCard:{[cards] a:(a:.backend.hand[first exec i from .backend.connections where turn=1b])_/desc .backend.cardDeck?cards};
