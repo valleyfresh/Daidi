@@ -164,9 +164,9 @@ playHand:{[cards] $[.backend.checkTurn[];.backend.turnMsg[];
 		//Round hand validations
 		0<sum -3#exec rankVal from .backend.turnTable;
 			$[(1=count .backend.cardDeck?cards)&(0=.backend.cardDeck?cards);
-			[.backend.broadcastPlay[cards];
-			.backend.turnTableUpdate[a;cards;first -1#exec round from .backend.turnTable;0];
-			.backend.nextTurn[]]
+				[.backend.broadcastPlay[cards];
+				.backend.turnTableUpdate[first -1#exec round from .backend.turnTable;cards;0];
+				.backend.nextTurn[]]
 			];
 				$[.backend.passInHand[cards];.backend.passInHandMsg[];
 				.backend.checkInHand[cards];.backend.notInHandMsg[];
