@@ -64,17 +64,17 @@ rankCalc:`single`double`fiveCard!(.backend.singleCalc;.backend.doublesCalc;.back
 
 //***   General validation   ***//
 checkTurn:{not first 1=exec turn from .backend.connections where handle=.z.w};
-checkInHand:{[cards] not min .backend.cardDeck?cards in .backend.hand[exec playerNo from .backend.connections where handle=.z.w]};
-passInHand:{[cards] not(1<count cards)&(any 0=.backend.cardDeck?cards)};
+checkInHand:{[cards] not min(.backend.cardDeck?cards)in .backend.hand[first exec i from .backend.connections where handle=.z.w]};
+passInHand:{[cards] (1<count cards)&(any 0=.backend.cardDeck?cards)};
 
 //***   First hand validation   ***//
 check3D:{[cards] not max 1=.backend.cardDeck?cards};
-checkPass:{[cards] not(1=count cards)&(52=count raze .backend.hand)&(any 1=.backend.cardDeck?cards)};
+checkPass:{[cards] (52=count raze .backend.hand)&(any 0=.backend.cardDeck?cards)};
 
 //***   Round type validations   ***//
 singlePlay:{1b};
-doublesPlay:{[cards] not min(a 0)=a:.backend.valueRank?-1_'cards};
-fiveCardPlay:{[cards] not max fiveCardVal::(straightCheck[cards];
+doublesPlay:{[cards] min(a 0)=a:.backend.valueRank?-1_'cards};
+fiveCardPlay:{[cards] max fiveCardVal::(straightCheck[cards];
 		flushCheck[cards];
 		fullHouseCheck[cards];
 		quadsCheck[cards];
@@ -86,12 +86,12 @@ fiveCardPlay:{[cards] not max fiveCardVal::(straightCheck[cards];
 roundDict:`single`double`fiveCard!1 2 5;
 roundCheck:`single`double`fiveCard!(.backend.singlePlay;.backend.doublesPlay;.backend.fiveCardPlay);
 
-roundPlay:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rank from .backend.turnTable;
-	$[(a:count cards) in value .backend.roundDict;
-		(.backend.roundCheck .backend.roundDict?count cards)[cards];
+roundPlay:{[cards] $[(0=count .backend.turnTable)|0=sum -3#exec rankVal from .backend.turnTable;
+	$[(a:count .backend.cardDeck?cards) in value .backend.roundDict;
+		not(.backend.roundCheck .backend.roundDict?count .backend.cardDeck?cards)[cards];
 		1b]; 
-	$[(count cards)=.backend.roundDict a:first -1#exec round from .backend.turnTable
-		(.backend.roundCheck a)[cards];
+	$[(count .backend.cardDeck?cards)=.backend.roundDict a:first -1#exec round from .backend.turnTable;
+		not(.backend.roundCheck a)[cards];
 		1b]]};
 
 //***   Five card validations   ***//
@@ -107,9 +107,9 @@ quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 	0b]};
 
 //***  Value validation   ***//
-singleRankCheck:{[cards] .backend.singleCalc[cards]>last exec rankVal from .backend.turnTable where rankVal>0};
-doublesRankCheck:{[cards] .backend.doublesCalc[cards]>last exec rankVal from .backend.turnTable where rankVal>0};
-fiveCardRankCheck:{[cards] .backend.fiveCardCalc[cards]>last exec rankVal from .backend.turnTable where rankVal>0};
+singleRankCheck:{[cards] .backend.singleCalc[cards]<last exec rankVal from .backend.turnTable where rankVal>0};
+doublesRankCheck:{[cards] .backend.doublesCalc[cards]<last exec rankVal from .backend.turnTable where rankVal>0};
+fiveCardRankCheck:{[cards] .backend.fiveCardCalc[cards]<last exec rankVal from .backend.turnTable where rankVal>0};
 
 rankValCheck:`single`double`fiveCard!(.backend.singleRankCheck;.backend.doublesRankCheck;.backend.fiveCardRankCheck);
 
@@ -123,7 +123,6 @@ notInHandMsg:{neg[.z.w](0N!;"Invalid cards!")};
 firstPassMsg:{neg[.z.w](0N!;"You cannot pass this turn!")};
 passInHandMsg:{neg[.z.w](0N!;"Pass can only be played by itself!")};
 firstHand3DMsg:{neg[.z.w](0N!;"First hand needs to have 3D!")};
-
 invalidDoublesMsg:{neg[.z.w](0N!;"Invalid doubles pair!")};
 invalidFiveCardMsg:{neg[.z.w](0N!;"Invalid 5 card combo!")};
 invalidRoundMsg:{neg[.z.w](0N!;"Invalid play!")};
@@ -133,13 +132,12 @@ invalidRankValMsg:{neg[.z.w](0N!;"Hand value is lower than previously played han
 ////   Post-validation actions   ////
 ////////////////////////////////////
 
-broadcastPlay:{[cards] neg[h]@\:(0N!;(string .z.u)," played ",cards)};
-
+broadcastPlay:{[cards] neg[h]@\:(0N!;raze(string .z.u)," played ",cards)};
 turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;round;enlist cards;rankVal)};
-
 //***NOTE: Only run next turn after running remove card function***//
-removeCard:{[cards] a:(a:.backend.hand[first exec i from .backend.connections where turn=1b])_/desc .backend.cardDeck?cards};
-
+removeCard:{[cards] $[1=count .backend.cardDeck?cards;
+	.backend.hand[b]:a _first where (a:.backend.hand[b:first exec i from .backend.connections where turn=1b])=.backend.cardDeck?cards;
+	.backend.hand[b]:a _/desc raze where each (a:.backend.hand[b:first exec i from .backend.connections where turn=1b])=/:.backend.cardDeck?cards]};
 nextTurn:{update turn:-1 rotate turn from `.backend.connections;neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
 
 //////////////////////////////////
@@ -156,36 +154,37 @@ playHand:{[cards] $[.backend.checkTurn[];.backend.turnMsg[];
 		.backend.checkInHand[cards];.backend.notInHandMsg[];
 		.backend.roundPlay[cards];.backend.invalidRoundMsg[];
 		(.backend.broadcastPlay[cards];
-		.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count cards)[cards]];
+		.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count .backend.cardDeck?cards)[cards]];
 		.backend.removeCard[cards];
 		.backend.nextTurn[])
 		];	
 		
 		//Round hand validations
-		0>sum -3#exec rankVal from .backend.turnTable;
-			$[(1=count cards)&(0=.backend.cardDeck?cards);
+		0<sum -3#exec rankVal from .backend.turnTable;
+			$[(1=count .backend.cardDeck?cards)&(0=.backend.cardDeck?cards);
 			(.backend.broadcastPlay[cards];
-			.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count cards)[cards]];
+			.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count .backend.cardDeck?cards)[cards]];
 			.backend.removeCard[cards];
-			.backend.nextTurn[])];
+			.backend.nextTurn[])
+			];
 				$[.backend.passInHand[cards];.backend.passInHandMsg[];
 				.backend.checkInHand[cards];.backend.notInHandMsg[];
 				.backend.roundPlay[cards];.backend.invalidRoundMsg[];
-				.backend.rankValCheck .backend.roundDict?count cards[cards];.backend.invalidRankValMsg[];
-				(.backend.broadcastPlay[cards];
-				.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count cards)[cards]];
-				.backend.removeCard[cards];
-				.backend.nextTurn[])
-			];	
+				(.backend.rankValCheck .backend.roundDict?count .backend.cardDeck?cards)[cards];.backend.invalidRankValMsg[];
+					(.backend.broadcastPlay[cards];
+					.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count .backend.cardDeck?cards)[cards]];
+					.backend.removeCard[cards];
+					.backend.nextTurn[])
+				];	
 			
-			//New round validation
+			//New round validations
 			0=sum -3#exec rankVal from .backend.turnTable;
 				$[.backend.passInHand[cards];.backend.passInHandMsg[];
 				.backend.checkInHand[cards];.backend.notInHandMsg[];
 				.backend.roundPlay[cards];.backend.invalidRoundMsg[];
-				(.backend.broadcastPlay[cards];
-				.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count cards)[cards]];
-				.backend.removeCard[cards];
-				.backend.nextTurn[])
+					(.backend.broadcastPlay[cards];
+					.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count .backend.cardDeck?cards)[cards]];
+					.backend.removeCard[cards];
+					.backend.nextTurn[])
 				]
 		]};
