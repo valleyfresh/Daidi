@@ -18,6 +18,7 @@ playHand:{[cards]
 			.debug.daryl::"first hand";
 			.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count .backend.cardDeck?cards)[cards]];
 			.backend.removeCard[cards];
+			.backend.broadcastCardNo'[exec user from .backend.connections;count each .backend.hand];
 			.backend.sendHand[];
 			.backend.nextTurn[]]
 			];	
@@ -30,6 +31,7 @@ playHand:{[cards]
 				[.backend.broadcastPlay[cards];
 				.debug.daryl::"pass turn val";
 				.backend.turnTableUpdate[first -1#exec round from .backend.turnTable;cards;0];
+				.backend.broadcastCardNo'[exec user from .backend.connections;count each .backend.hand];
 				.backend.sendHand[];
 				.backend.nextTurn[]];
 				//Validations if it's a normal hand
@@ -41,22 +43,34 @@ playHand:{[cards]
 					[.backend.broadcastPlay[cards];
 					.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count .backend.cardDeck?cards)[cards]];
 					.backend.removeCard[cards];
-					.backend.sendHand[];
-					.backend.nextTurn[]]
+					$[.backend.endGame[];
+						neg[exec handle from .backend.connections]@\:(0N!;(string first exec user from .backend.connections where i=(first where 0=count each .backend.hand))," is the winner!");
+						[.backend.broadcastCardNo'[exec user from .backend.connections;count each .backend.hand];
+						.backend.sendHand[];
+						.backend.nextTurn[]
+						]
+					]
+					]
 				]
 			];	
 
 		//New round validations - run if not new hand and if 3 passes were played
 		$[.backend.passInHand[cards];.backend.passInHandMsg[];
-		.backend.checkInHand[cards];.backend.notInHandMsg[];
-		.backend.roundPlay[cards];.backend.invalidRoundMsg[];
-		//Play new round after passing validations
-		[.backend.broadcastPlay[cards];
-		.debug.daryl::"new round val";
-		.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count .backend.cardDeck?cards)[cards]];
-		.backend.removeCard[cards];
-		.backend.sendHand[];
-		.backend.nextTurn[]]
+			.backend.checkInHand[cards];.backend.notInHandMsg[];
+			.backend.roundPlay[cards];.backend.invalidRoundMsg[];
+			//Play new round after passing validations
+			[.backend.broadcastPlay[cards];
+			.debug.daryl::"new round val";
+			.backend.turnTableUpdate[a;cards;(.backend.rankCalc a:.backend.roundDict?count .backend.cardDeck?cards)[cards]];
+			.backend.removeCard[cards];
+			$[.backend.endGame[];
+				neg[exec handle from .backend.connections]@\:(0N!;(string first exec user from .backend.connections where i=(first where 0=count each .backend.hand))," is the winner!");
+				[.backend.broadcastCardNo'[exec user from .backend.connections;count each .backend.hand];
+				.backend.sendHand[];
+				.backend.nextTurn[]
+				]
+			]
+			]
 		]
 	]};
 
@@ -66,10 +80,10 @@ playHand:{[cards]
 ////   Connection logic   ////
 /////////////////////////////
 
-connections:flip `dateTime`user`host`ipAddress`handle`playerNo`turn!"ZSS*IIB"$\:();
+connections:flip `dateTime`user`host`ipAddress`handle`turn!"ZSS*IB"$\:();
 
 .z.po:{[w] $[4>=a:1+exec count i from .backend.connections;
-	(`.backend.connections insert .z.Z,.z.u,(.Q.host .z.a;"." sv string "h"$0x0 vs .z.a),w,a,0b;
+	(`.backend.connections insert .z.Z,.z.u,(.Q.host .z.a;"." sv string "h"$0x0 vs .z.a),w,0b;
 	0N!"Connection Established by ",string .z.u);
 	neg[w](0N!;"Lobby is full")];
 	
@@ -100,6 +114,7 @@ startTurn:{update turn:max each 1=.backend.hand from `.backend.connections;neg[f
 
 //Turn table - reinitialised every game and updated when a valid hand is played
 turnTableInit:{turnTable::flip `player`handle`round`play`rankVal!"SIS*J"$\:()};
+hand:0;
 
 ////////////////////
 ////  Ranking   ////
@@ -108,12 +123,12 @@ turnTableInit:{turnTable::flip `player`handle`round`play`rankVal!"SIS*J"$\:()};
 //***   Card ranking   ***//
 suitRank:til[4]!"DCHS";
 valueRank:til[13]!(string 3+til[8]),enlist each"JQKA2";
-fiveCardRank:til[6]!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
+fiveCardRank:(53*1+til[6])!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
 //***   Rank calculation   ***//
 singleCalc:{[cards] .backend.cardDeck?cards};
 doublesCalc:{[cards] sum(.backend.cardDeck?cards),.backend.suitRank?last each cards};
-fiveCardCalc:{[cards] (max .backend.cardDeck?cards),last (key .backend.fiveCardRank) where .backend.fiveCardVal};
+fiveCardCalc:{[cards] (max .backend.cardDeck?cards)*last (key .backend.fiveCardRank) where .backend.fiveCardVal};
 
 rankCalc:`single`double`fiveCard!(.backend.singleCalc;.backend.doublesCalc;.backend.fiveCardCalc);
 
@@ -182,7 +197,7 @@ passInHandMsg:{neg[.z.w](0N!;"Pass can only be played by itself!")};
 firstHand3DMsg:{neg[.z.w](0N!;"First hand needs to have 3D!")};
 invalidDoublesMsg:{neg[.z.w](0N!;"Invalid doubles pair!")};
 invalidFiveCardMsg:{neg[.z.w](0N!;"Invalid 5 card combo!")};
-invalidRoundMsg:{neg[.z.w](0N!;"Invalid play!")};
+invalidRoundMsg:{neg[.z.w](0N!;"Invalid play! The current round type is ",string first -1#exec round from .backend.turnTable)};
 invalidRankValMsg:{neg[.z.w](0N!;"Hand value is lower than previously played hand!")};
 
 /////////////////////////////////////
@@ -195,7 +210,11 @@ turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;rou
 removeCard:{[cards] $[1=count .backend.cardDeck?cards;
 	.backend.hand[b]:a _first where (a:.backend.hand[b:first exec i from .backend.connections where turn=1b])=.backend.cardDeck?cards;
 	.backend.hand[b]:a _/desc raze where each (a:.backend.hand[b:first exec i from .backend.connections where turn=1b])=/:.backend.cardDeck?cards]};
+broadcastCardNo:{neg[h]@\:(0N!;raze (string x)," has ",(string y)," cards left!")};
 nextTurn:{update turn:-1 rotate turn from `.backend.connections;
 	neg[exec handle from .backend.connections where turn=0b]@\:(0N!;raze"It is ",string .z.u,"'s turn");
-	neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn")};
+	neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn");
+	if[0=sum -3#exec rankVal from .backend.turnTable;
+		neg[first exec handle from .backend.connections where turn=1b](0N!;"3 players played pass. You can start a new round!")]};
 sendHand:{{neg[x](0N!;y)}'[h;.backend.cardDeck hand]};
+endGame:{any 0=count each .backend.hand};
