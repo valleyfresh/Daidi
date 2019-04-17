@@ -164,12 +164,12 @@ checkPass:{[cards] (52=count raze .backend.hand)&(any 0=.backend.cardDeck?cards)
 //***   Round type validations   ***//
 singlePlay:{1b};
 doublesPlay:{[cards] min(a 0)=a:.backend.valueRank?-1_'cards};
-fiveCardPlay:{[cards] max fiveCardVal::(straightCheck[cards];
-		flushCheck[cards];
-		fullHouseCheck[cards];
-		quadsCheck[cards];
-		straightFlushCheck[cards];
-		royalCheck[cards])
+fiveCardPlay:{[cards] max fiveCardVal::(straightCheck;
+		flushCheck;
+		fullHouseCheck;
+		quadsCheck;
+		straightFlushCheck;
+		royalCheck)@\:cards
 		};
 
 roundDict:`single`double`fiveCard!1 2 5;
@@ -191,12 +191,12 @@ flushCheck:{[cards] min(first a)=a:last each cards};
 straightFlushCheck:{[cards] .backend.straightCheck[cards]&.backend.flushCheck[cards]};
 royalCheck:{[cards] .backend.straightCheck[cards]&.backend.flushCheck[cards]&50=sum .backend.valueRank?-1_'cards};
 fullHouseCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
-	(max min each(3 2;2 3)=\:sum each(distinct a)=\:a);
+	any(min=[(sum=[a]@)each distinct a]@)each(3 2;2 3);
 	0b
 	]
 	};
 quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
-	(max min each(4 1;1 4)=\:sum each(distinct a)=\:a);
+	any(min=[(sum=[a]@)each distinct a]@)each(4 1;1 4);
 	0b
 	]
 	};
