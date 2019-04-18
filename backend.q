@@ -138,6 +138,7 @@ valueRank:til[13]!(string 3+til[8]),enlist each"JQKA2";
 fiveCardRank:(53*1+til[6])!`straight`flush`fullHouse`quads`straightFlush`royalFlush;
 
 //***   Rank calculation   ***//
+/Calculating the value of the played hand
 singleCalc:{[cards] .backend.cardDeck?cards};
 doublesCalc:{[cards] sum(.backend.cardDeck?cards),.backend.suitRank?last each cards};
 fiveCardCalc:{[cards] if[any raze(`fullHouse;`quads)=\:(value .backend.fiveCardRank)where .backend.fiveCardVal;
@@ -164,12 +165,13 @@ checkPass:{[cards] (52=count raze .backend.hand)&(any 0=.backend.cardDeck?cards)
 //***   Round type validations   ***//
 singlePlay:{1b};
 doublesPlay:{[cards] min(a 0)=a:.backend.valueRank?-1_'cards};
-fiveCardPlay:{[cards] max fiveCardVal::(straightCheck;
-		flushCheck;
-		fullHouseCheck;
-		quadsCheck;
-		straightFlushCheck;
-		royalCheck)@\:cards
+/Global fiveCardVal is used in .backend.rankVal calculations
+fiveCardPlay:{[cards] max fiveCardVal::(.backend.straightCheck;
+		.backend.flushCheck;
+		.backend.fullHouseCheck;
+		.backend.quadsCheck;
+		.backend.straightFlushCheck;
+		.backend.royalCheck)@\:cards
 		};
 
 roundDict:`single`double`fiveCard!1 2 5;
@@ -201,7 +203,8 @@ quadsCheck:{[cards] $[2=count distinct a:.backend.valueRank?-1_'cards;
 	]
 	};
 
-//***  Value validation   ***//
+//***  Value validation   ***// 
+/Ensure that played card value is greater than the previous play
 singleRankCheck:{[cards] .backend.singleCalc[cards]<last exec rankVal from .backend.turnTable where rankVal>0};
 doublesRankCheck:{[cards] .backend.doublesCalc[cards]<last exec rankVal from .backend.turnTable where rankVal>0};
 fiveCardRankCheck:{[cards] .backend.fiveCardCalc[cards]<last exec rankVal from .backend.turnTable where rankVal>0};
@@ -230,14 +233,18 @@ invalidRankValMsg:{neg[.z.w](0N!;"Hand value is lower than previously played han
 broadcastPlay:{[cards] neg[h]@\:(0N!;raze(string .z.u)," played ",cards)};
 turnTableUpdate:{[round;cards;rankVal] `.backend.turnTable upsert (.z.u;.z.w;round;enlist cards;rankVal)};
 //***NOTE: Only run next turn after running remove card function***//
-removeCard:{[cards] $[1=count .backend.cardDeck?cards;
-	.backend.hand[b]:a _first where (a:.backend.hand[b:first exec i from .backend.connections where turn=1b])=.backend.cardDeck?cards;
-	.backend.hand[b]:a _/desc raze where each (a:.backend.hand[b:first exec i from .backend.connections where turn=1b])=/:.backend.cardDeck?cards]};
+removeCard:{[cards] 
+	@[`.backend.hand;
+	a;
+	{_/[x;y]};
+	raze desc(where=[.backend.hand a:first exec i from .backend.connections where turn=1]@)each .backend.cardDeck?cards
+	]};
 broadcastCardNo:{neg[h]@\:(0N!;raze (string x)," has ",(string y)," cards left!")};
 nextTurn:{update turn:-1 rotate turn from `.backend.connections;
-	neg[exec handle from .backend.connections where turn=0b]@\:(0N!;raze"It is ",string .z.u,"'s turn");
-	neg[first exec handle from .backend.connections where turn=1b](0N!;"It is your turn");
+	neg[exec handle from .backend.connections where turn=0]@\:(0N!;raze"It is ",string .z.u,"'s turn");
+	neg[first exec handle from .backend.connections where turn=1](0N!;"It is your turn");
 	if[0=sum -3#exec rankVal from .backend.turnTable;
-		neg[first exec handle from .backend.connections where turn=1b](0N!;"3 players played pass. You can start a new round!")]};
+		neg[first exec handle from .backend.connections where turn=1](0N!;"3 players played pass. You can start a new round!")]
+		};
 sendHand:{{neg[x](0N!;y)}'[h;.backend.cardDeck hand]};
 endGame:{any 0=count each .backend.hand};
